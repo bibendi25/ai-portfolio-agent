@@ -2,7 +2,9 @@
 import fs from 'fs';
 import path from 'path';
 
-const DOCS_DIR = path.join(process.cwd(), 'docs');
+- const DOCS_DIR = path.join(process.cwd(), 'docs');
++ const DOCS_DIR = path.join(process.cwd(), 'public', 'docs');
+
 
 function readAllDocs() {
   const files = [];
