@@ -10,7 +10,7 @@ export async function POST(req) {
 
     if (mode === 'list') {
       const projects = corpus.filter(d => d.path.startsWith('projects/')).map(d => d.path);
-      const others = corpus.filter(d => !d.path.startsWith('projects/')).map(d => d.path);
+      const others   = corpus.filter(d => !d.path.startsWith('projects/')).map(d => d.path);
       return NextResponse.json({ ok: true, projects, others });
     }
 
@@ -42,13 +42,16 @@ export async function POST(req) {
         score: top.reduce((s, k) => s + (d.text.toLowerCase().includes(k) ? 1 : 0), 0),
         doc: d
       })).sort((a, b) => b.score - a.score);
+
       const picks = scored.slice(0, 2).map(s => s.doc);
-      const projNames = picks.map(p => (p.text.match(/title:\s*(.+)/)?.[1]
-        || p.path.replace('projects/', '').replace(/[-_]/g, ' ').replace(/\.md$/, ''))).join(', ');
+      const projNames = picks.map(p =>
+        (p.text.match(/title:\s*(.+)/)?.[1]
+          || p.path.replace('projects/', '').replace(/[-_]/g, ' ').replace(/\.md$/, ''))
+      ).join(', ');
 
       const bio114 = corpus.find(c => c.path.endsWith('bio/bio_114.md'))?.text || '';
-      const bio48 = corpus.find(c => c.path.endsWith('bio/bio_48.md'))?.text || '';
-      const bio = stripFrontMatter(bio114) || stripFrontMatter(bio48);
+      const bio48  = corpus.find(c => c.path.endsWith('bio/bio_48.md'))?.text || '';
+      const bio    = stripFrontMatter(bio114) || stripFrontMatter(bio48);
 
       const reqs = top.slice(0, 3);
       const bullets = reqs.map(r => `- ${r} → evidence in ${projNames}`).join('\n');
