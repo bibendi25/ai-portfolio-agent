@@ -13,7 +13,12 @@ export default function Page(){
       <div className="col"><div className="card">
         <h3>Ask about my work</h3>
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder='e.g. "What did you do on HSBC payments?"'/>
-        <button onClick={async()=>{const r=await api({mode:'ask',q}); setHits(r.hits||[])}}>Answer</button>
+        <button className="primary" onClick={async()=>{
+  const resp = await api({mode:'ask', q});
+  if(!resp.ok && resp.error){ alert('API error: ' + resp.error); return; }
+  setHits(resp.hits || []);
+}}>Answer</button>
+
         {hits.length? hits.map((h,i)=>(<div key={i}><pre>{h.p}</pre><small>source: {h.source}</small><hr/></div>)) : <small>Tip: HSBC, Mercedes‑Benz, SRF, Barclaycard, JEWZY, La Casa Shambala.</small>}
       </div></div>
       <div className="col"><div className="card">
