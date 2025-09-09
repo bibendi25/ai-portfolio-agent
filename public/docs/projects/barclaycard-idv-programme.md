@@ -1,7 +1,7 @@
 ---
 type: project
 title: Barclaycard
-role: UX Consultant
+role: Senior UX Strategic Consultant
 ---
 
 ## The brief
