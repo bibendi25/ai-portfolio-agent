@@ -21,7 +21,12 @@ export default function Page(){
   Answer
 </button>
 
-        {hits.length? hits.map((h,i)=>(<div key={i}><pre>{h.p}</pre><small>source: {h.source}</small><hr/></div>)) : <small>Tip: HSBC, Mercedes‑Benz, SRF, Barclaycard, JEWZY, La Casa Shambala.</small>}
+        {hits.length ? hits.map((h,i)=> (
+  <div key={i} className="answer">
+    {h.p}
+    <div className="source">Source: <code>{h.source}</code></div>
+  </div>
+)) : <small>Tip: HSBC, Mercedes‑Benz, SRF, Barclaycard, JEWZY, La Casa Shambala.</small>}
       </div></div>
       <div className="col"><div className="card">
         <h3>Tailored cover note</h3>
