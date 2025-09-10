@@ -3,13 +3,13 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-/** Find /public/docs even if Vercel root is mis-set (e.g., to app/) */
+/** Resolve /public/docs even if Vercel “Root Directory” was mis-set (e.g. to /app) */
 function resolveDocsDir() {
   const cwd = process.cwd();
   const candidates = [
-    path.join(cwd, 'public', 'docs'),         // normal
-    path.join(cwd, '..', 'public', 'docs'),   // root set to /app
-    path.join(cwd, '..', '..', 'public', 'docs') // extra safety
+    path.join(cwd, 'public', 'docs'),
+    path.join(cwd, '..', 'public', 'docs'),
+    path.join(cwd, '..', '..', 'public', 'docs'),
   ];
   for (const d of candidates) {
     try { if (fs.existsSync(d)) return d; } catch {}
@@ -17,6 +17,7 @@ function resolveDocsDir() {
   return null;
 }
 
+/** Safe, recursive read of docs */
 function readAllDocs(docsDir) {
   if (!docsDir) return [];
   const out = [];
@@ -25,12 +26,9 @@ function readAllDocs(docsDir) {
       const p = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(p);
       else if (/\.(md|mdx)$/i.test(entry.name)) {
-        out.push({
-          path: path.relative(docsDir, p).replace(/\\+/g, '/'),
-          text: fs.readFileSync(p, 'utf8')
-        });
+        out.push({ path: path.relative(docsDir, p).replace(/\\+/g,'/'), text: fs.readFileSync(p, 'utf8') });
       } else if (/\.pdf$/i.test(entry.name)) {
-        out.push({ path: path.relative(docsDir, p).replace(/\\+/g, '/'), text: '' });
+        out.push({ path: path.relative(docsDir, p).replace(/\\+/g,'/'), text: '' });
       }
     }
   };
@@ -38,49 +36,40 @@ function readAllDocs(docsDir) {
   return out;
 }
 
-function stripFrontMatter(md) {
-  return String(md || '').replace(/^---[\s\S]*?---\s*/, '').trim();
-}
-
 const STOP = new Set([
   'the','and','for','with','that','this','from','into','your','you','our','are','was','were','but','not','use','using',
   'have','has','had','can','will','able','about','over','more','than','then','also','been','their','they','them',
   'on','in','to','of','a','an','as','by','at','it','its','or','be','is','am','we','us','what','did','does'
 ]);
-const tokens = (s) => (String(s).toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter(t => !STOP.has(t));
-const splitParas = (text) => stripFrontMatter(text).split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
-const titleFor = (mdPath, text) => {
-  const m = text.match(/title:\s*(.+)/);
-  return m ? m[1].trim() : mdPath.replace(/^projects\//,'').replace(/\.md$/,'').replace(/[-_]/g,' ').trim();
-};
+const stripFrontMatter = (md) => String(md||'').replace(/^---[\s\S]*?---\s*/, '').trim();
+const tokens      = (s) => (String(s).toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter(t => !STOP.has(t));
+const splitParas  = (t) => stripFrontMatter(t).split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
+const titleFor    = (mdPath, text) => (text.match(/title:\s*(.+)/)?.[1]?.trim()) ?? mdPath.replace(/^projects\//,'').replace(/\.md$/,'').replace(/[-_]/g,' ').trim();
+
+export async function GET(req) { return POST(req); } // allow GET for quick testing
 
 export async function POST(req){
   try {
     const body = await req.json().catch(()=> ({}));
-    const mode = body.mode || 'ask';
+    const mode = body.mode || new URL(req.url).searchParams.get('mode') || 'ask';
 
     const docsDir = resolveDocsDir();
-    const corpus = readAllDocs(docsDir);
+    const corpus  = readAllDocs(docsDir);
 
+    // LIST works even when empty (so UI can show zero state)
     if (mode === 'list') {
       const projects = corpus.filter(d => d.path.startsWith('projects/')).map(d => d.path);
       const others   = corpus.filter(d => !d.path.startsWith('projects/')).map(d => d.path);
       return NextResponse.json({
         ok: true, projects, others,
-        _debug: {
-          cwd: process.cwd(),
-          docsDir,
-          docsDirExists: !!docsDir,
-          corpusCount: corpus.length
-        }
+        _debug: { cwd: process.cwd(), docsDir, docsDirExists: !!docsDir, corpusCount: corpus.length }
       });
     }
 
+    // Friendly error (200) if no docs found
     if (!corpus.length) {
       return NextResponse.json({
-        ok:false,
-        error:`No documents found. Expected at: ${docsDir || '<unresolved>'}`,
-        hits:[], note:'', md:''
+        ok:false, error:`No documents found. Expected at: ${docsDir || '<unresolved>'}`, hits:[], note:'', md:''
       });
     }
 
@@ -114,6 +103,7 @@ export async function POST(req){
       const kws = tokens(body.jd || '');
       const freq = new Map(); kws.forEach(t=>freq.set(t,(freq.get(t)||0)+1));
       const top = Array.from(new Set(kws)).sort((a,b)=>(freq.get(b)||0)-(freq.get(a)||0)).slice(0,25);
+
       const projects = corpus.filter(d => d.path.startsWith('projects/'));
       const scored = projects.map(d => ({ score: top.reduce((s,k)=> s + (d.text.toLowerCase().includes(k)?1:0), 0), doc: d }))
                              .sort((a,b)=> b.score - a.score);
@@ -149,7 +139,7 @@ export async function POST(req){
       const doc = corpus.find(d => d.path === project);
       if (!doc) return NextResponse.json({ ok:false, error:'Not found' });
 
-      const md = stripFrontMatter(doc.text);
+      const md  = stripFrontMatter(doc.text);
       const lines = md.split('\n');
       const find = (label) => {
         const re = new RegExp(`^(#+\\s*)?(${label})\\b`, 'i');
@@ -162,7 +152,7 @@ export async function POST(req){
       const role    = find('my\\s+role');
       const results = find('major\\s+accomplishments|challenges?\\s*&?\\s*results?');
 
-      const caseMd = `# ${titleFor(doc.path, doc.text)}
+      const caseMd = `# ${project.replace(/^projects\\//,'').replace(/\\.md$/,'').replace(/[-_]/g,' ')}
 
 **Context**  
 ${context || '—'}
@@ -184,6 +174,7 @@ ${role || '—'}
 
     return NextResponse.json({ ok:false, error:'Unknown mode' });
   } catch (e) {
+    // Never return an empty 500; always JSON
     return NextResponse.json({ ok:false, error:String(e) });
   }
 }
