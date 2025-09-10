@@ -5,17 +5,11 @@ import path from 'path';
 
 function resolveDocsDir() {
   const cwd = process.cwd();
-  const candidates = [
-    path.join(cwd, 'public', 'docs'),
-    path.join(cwd, '..', 'public', 'docs'),
-    path.join(cwd, '..', '..', 'public', 'docs')
-  ];
-  for (const d of candidates) {
+  for (const d of [path.join(cwd,'public','docs'), path.join(cwd,'..','public','docs'), path.join(cwd,'..','..','public','docs')]) {
     try { if (fs.existsSync(d)) return d; } catch {}
   }
   return null;
 }
-
 export async function GET(req) {
   try {
     const url = new URL(req.url);
@@ -26,14 +20,10 @@ export async function GET(req) {
     const full = path.normalize(path.join(docsDir, p));
     if (!full.startsWith(docsDir)) return new NextResponse('Bad path', { status: 400 });
 
+    const buf = fs.readFileSync(full);
     const isPdf = /\.pdf$/i.test(full);
-    const data = fs.readFileSync(full);
-    return new NextResponse(data, {
-      status: 200,
-      headers: { 'Content-Type': isPdf ? 'application/pdf' : 'text/markdown; charset=utf-8' }
-    });
+    return new NextResponse(buf, { status: 200, headers: { 'Content-Type': isPdf ? 'application/pdf' : 'text/markdown; charset=utf-8' }});
   } catch {
     return new NextResponse('Not found', { status: 404 });
   }
 }
-
