@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-/** Resolve /public/docs even if Vercel “Root Directory” was mis-set (e.g. to /app) */
 function resolveDocsDir() {
   const cwd = process.cwd();
   const candidates = [
@@ -17,7 +16,6 @@ function resolveDocsDir() {
   return null;
 }
 
-/** Safe, recursive read of docs */
 function readAllDocs(docsDir) {
   if (!docsDir) return [];
   const out = [];
@@ -36,45 +34,45 @@ function readAllDocs(docsDir) {
   return out;
 }
 
-const STOP = new Set([
-  'the','and','for','with','that','this','from','into','your','you','our','are','was','were','but','not','use','using',
-  'have','has','had','can','will','able','about','over','more','than','then','also','been','their','they','them',
-  'on','in','to','of','a','an','as','by','at','it','its','or','be','is','am','we','us','what','did','does'
-]);
+const STOP = new Set(['the','and','for','with','that','this','from','into','your','you','our','are','was','were','but','not','use','using','have','has','had','can','will','able','about','over','more','than','then','also','been','their','they','them','on','in','to','of','a','an','as','by','at','it','its','or','be','is','am','we','us','what','did','does']);
 const stripFrontMatter = (md) => String(md||'').replace(/^---[\s\S]*?---\s*/, '').trim();
 const tokens      = (s) => (String(s).toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter(t => !STOP.has(t));
 const splitParas  = (t) => stripFrontMatter(t).split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
 const titleFor    = (mdPath, text) => (text.match(/title:\s*(.+)/)?.[1]?.trim()) ?? mdPath.replace(/^projects\//,'').replace(/\.md$/,'').replace(/[-_]/g,' ').trim();
 
-export async function GET(req) { return POST(req); } // allow GET for quick testing
-
+export async function GET(req)  { return POST(req); } // support GET for quick tests
 export async function POST(req){
   try {
+    const url  = new URL(req.url);
+    const qsMode = url.searchParams.get('mode');
     const body = await req.json().catch(()=> ({}));
-    const mode = body.mode || new URL(req.url).searchParams.get('mode') || 'ask';
+    const mode = body.mode || qsMode || 'ask';
 
     const docsDir = resolveDocsDir();
     const corpus  = readAllDocs(docsDir);
 
-    // LIST works even when empty (so UI can show zero state)
+    if (mode === 'diag') {
+      // quick introspection
+      let publicList = [];
+      try { publicList = fs.readdirSync(path.join(process.cwd(),'public')); } catch {}
+      return NextResponse.json({
+        ok:true,
+        _debug:{ cwd:process.cwd(), docsDir, docsDirExists: !!docsDir, corpusCount: corpus.length, publicList }
+      });
+    }
+
     if (mode === 'list') {
       const projects = corpus.filter(d => d.path.startsWith('projects/')).map(d => d.path);
       const others   = corpus.filter(d => !d.path.startsWith('projects/')).map(d => d.path);
-      return NextResponse.json({
-        ok: true, projects, others,
-        _debug: { cwd: process.cwd(), docsDir, docsDirExists: !!docsDir, corpusCount: corpus.length }
-      });
+      return NextResponse.json({ ok:true, projects, others, _debug:{ docsDir, corpusCount: corpus.length } });
     }
 
-    // Friendly error (200) if no docs found
     if (!corpus.length) {
-      return NextResponse.json({
-        ok:false, error:`No documents found. Expected at: ${docsDir || '<unresolved>'}`, hits:[], note:'', md:''
-      });
+      return NextResponse.json({ ok:false, error:`No documents found. Expected at: ${docsDir || '<unresolved>'}`, hits:[], note:'', md:'' });
     }
 
     if (mode === 'ask') {
-      const qTok = tokens(body.q || '');
+      const qTok = tokens(body.q || url.searchParams.get('q') || '');
       if (!qTok.length) return NextResponse.json({ ok:true, hits: [] });
 
       const hits = [];
@@ -139,7 +137,7 @@ export async function POST(req){
       const doc = corpus.find(d => d.path === project);
       if (!doc) return NextResponse.json({ ok:false, error:'Not found' });
 
-      const md  = stripFrontMatter(doc.text);
+      const md = stripFrontMatter(doc.text);
       const lines = md.split('\n');
       const find = (label) => {
         const re = new RegExp(`^(#+\\s*)?(${label})\\b`, 'i');
@@ -174,7 +172,6 @@ ${role || '—'}
 
     return NextResponse.json({ ok:false, error:'Unknown mode' });
   } catch (e) {
-    // Never return an empty 500; always JSON
     return NextResponse.json({ ok:false, error:String(e) });
   }
 }
