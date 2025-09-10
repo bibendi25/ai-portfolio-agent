@@ -3,9 +3,10 @@ import path from 'path';
 
 const DOCS_DIR = path.join(process.cwd(), 'public', 'docs');
 
-function readAllDocs() {
+function safeReadAllDocs() {
+  if (!fs.existsSync(DOCS_DIR)) return [];
   const files = [];
-  function walk(dir) {
+  const walk = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(p);
@@ -15,16 +16,20 @@ function readAllDocs() {
         files.push({ path: path.relative(DOCS_DIR, p).replace(/\\+/g, '/'), text: '' });
       }
     }
-  }
-  walk(DOCS_DIR);
+  };
+  try { walk(DOCS_DIR); } catch { return []; }
   return files;
 }
 
 export function getCorpus() {
-  if (!global.__CORPUS__) global.__CORPUS__ = readAllDocs();
-  return global.__CORPUS__;
+  try {
+    if (!global.__CORPUS__) global.__CORPUS__ = safeReadAllDocs();
+    return global.__CORPUS__;
+  } catch {
+    return [];
+  }
 }
 
 export function stripFrontMatter(md) {
-  return md.replace(/^---[\s\S]*?---\s*/, '').trim();
+  return String(md || '').replace(/^---[\s\S]*?---\s*/, '').trim();
 }
