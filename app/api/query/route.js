@@ -45,7 +45,6 @@ export async function POST(req){
           if (score > 0) hits.push({ score, p, source: doc.path });
         }
       }
-      // fallback: show first paragraph from top matching docs
       if (!hits.length) {
         const scored = corpus.filter(d=>d.text).map(d=>{
           const t=d.text.toLowerCase();
