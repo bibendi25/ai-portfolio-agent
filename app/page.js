@@ -120,7 +120,10 @@ export default function Page() {
               <div key={i} className="answer">
                 {h.p}
                 <div className="source">
-                  Source: <a href={'/docs/' + h.source} target="_blank" rel="noreferrer"><code>{h.source}</code></a>
+                  Source: <a href={'/api/raw?p=' + encodeURIComponent(h.source)} target="_blank" rel="noreferrer">
+  <code>{h.source}</code>
+</a>
+
                 </div>
               </div>
             )) : <small className="muted">No matches yet. Ask a question that uses terms from the Sources list (below).</small>}
@@ -188,12 +191,14 @@ export default function Page() {
             <ul>
               {projects.map(p => (
                 <li key={'p-' + p}>
-                  <a href={'/docs/' + p} target="_blank" rel="noreferrer"><code>{p}</code></a>
+                  <a href={'/api/raw?p=' + encodeURIComponent(p)} target="_blank" rel="noreferrer"><code>{p}</code></a>
+
                 </li>
               ))}
               {others.map(o => (
                 <li key={'o-' + o}>
-                  <a href={'/docs/' + o} target="_blank" rel="noreferrer"><code>{o}</code></a>
+                  <a href={'/api/raw?p=' + encodeURIComponent(p)} target="_blank" rel="noreferrer"><code>{p}</code></a>
+
                 </li>
               ))}
             </ul>
