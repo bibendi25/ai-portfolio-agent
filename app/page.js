@@ -21,12 +21,10 @@ async function getSettings() {
 }
 
 export default function Page() {
-  // Inputs
   const [q, setQ] = useState('');
   const [jd, setJd] = useState('');
   const [sel, setSel] = useState('');
 
-  // Data
   const [projects, setProjects] = useState([]);
   const [others, setOthers] = useState([]);
   const [hits, setHits] = useState([]);
@@ -34,12 +32,10 @@ export default function Page() {
   const [md, setMd] = useState('');
   const [cfg, setCfg] = useState(null);
 
-  // UI state
   const [loadingAsk, setLoadingAsk] = useState(false);
   const [loadingCover, setLoadingCover] = useState(false);
   const [loadingCase, setLoadingCase] = useState(false);
 
-  // Rotating tips (ASCII only)
   const tips = useMemo(() => [
     'What did you do on HSBC payments?',
     'How did you improve Mercedes-Benz IA?',
@@ -53,7 +49,6 @@ export default function Page() {
     return () => clearInterval(t);
   }, [tips.length]);
 
-  // Init
   useEffect(() => {
     (async () => {
       const [list, settings] = await Promise.all([api({ mode: 'list' }), getSettings()]);
@@ -66,7 +61,6 @@ export default function Page() {
     })();
   }, []);
 
-  // Helpers
   const copyToClipboard = async (text) => {
     try { await navigator.clipboard.writeText(text); alert('Copied to clipboard'); }
     catch { alert('Copy failed'); }
@@ -89,7 +83,6 @@ export default function Page() {
       </div>
 
       <div className="row">
-        {/* Ask about my work */}
         <div className="col">
           <div className="card">
             <h3>Ask about my work</h3>
@@ -134,7 +127,6 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Cover note */}
         <div className="col">
           <div className="card">
             <h3>Tailored cover note</h3>
@@ -149,7 +141,6 @@ export default function Page() {
               }}>
                 {loadingCover ? <span className="spinner" aria-label="Loading" /> : 'Generate'}
               </button>
-
               {note ? (
                 <>
                   <button className="btn secondary" onClick={() => copyToClipboard(note)}>Copy</button>
@@ -163,7 +154,6 @@ export default function Page() {
       </div>
 
       <div className="row">
-        {/* Case study */}
         <div className="col">
           <div className="card">
             <h3>Case study generator</h3>
@@ -180,7 +170,6 @@ export default function Page() {
               }}>
                 {loadingCase ? <span className="spinner" aria-label="Loading" /> : 'Create'}
               </button>
-
               {md ? (
                 <>
                   <button className="btn secondary" onClick={() => copyToClipboard(md)}>Copy</button>
@@ -192,7 +181,6 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Sources */}
         <div className="col">
           <div id="sources" className="card">
             <h3>Sources</h3>
