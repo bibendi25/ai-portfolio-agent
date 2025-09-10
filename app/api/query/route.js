@@ -17,19 +17,25 @@ function titleFor(mdPath, text){
 }
 
 export async function POST(req){
+  // Always return JSON; never let module errors bubble out as empty 500s.
   try{
     const body = await req.json();
     const mode = body.mode || 'ask';
-    const corpus = getCorpus();
 
-    if (!Array.isArray(corpus) || !corpus.length) {
-      return NextResponse.json({ ok:false, error:'No documents found under public/docs' }, { status: 500 });
-    }
+    // Read corpus safely
+    let corpus = [];
+    try { corpus = getCorpus() || []; } catch { corpus = []; }
 
+    // LIST should work even if empty
     if (mode === 'list') {
       const projects = corpus.filter(d => d.path.startsWith('projects/')).map(d => d.path);
       const others   = corpus.filter(d => !d.path.startsWith('projects/')).map(d => d.path);
-      return NextResponse.json({ ok:true, projects, others });
+      return NextResponse.json({ ok:true, projects, others, _empty: !corpus.length });
+    }
+
+    // If we have no docs, respond gracefully (200) so the UI can handle it
+    if (!Array.isArray(corpus) || corpus.length === 0) {
+      return NextResponse.json({ ok:false, error:'No documents found under public/docs', hits: [], note:'', md:'' });
     }
 
     if (mode === 'ask') {
@@ -100,7 +106,7 @@ export async function POST(req){
     if (mode === 'case') {
       const project = String(body.project || '');
       const doc = corpus.find(d => d.path === project);
-      if (!doc) return NextResponse.json({ ok:false, error:'Not found' }, { status: 404 });
+      if (!doc) return NextResponse.json({ ok:false, error:'Not found' });
 
       const md = stripFrontMatter(doc.text);
       const lines = md.split('\n');
@@ -135,8 +141,8 @@ ${role || '—'}
       return NextResponse.json({ ok:true, md: caseMd });
     }
 
-    return NextResponse.json({ ok:false, error:'Unknown mode' }, { status: 400 });
-  }catch(e){
-    return NextResponse.json({ ok:false, error:String(e) }, { status: 500 });
+    return NextResponse.json({ ok:false, error:'Unknown mode' });
+  } catch (e) {
+    return NextResponse.json({ ok:false, error:String(e) });
   }
 }
